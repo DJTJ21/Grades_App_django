@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: grades_app_db
+    environment:
+      POSTGRES_DB: grades_app
+      POSTGRES_USER: grades_user
+      POSTGRES_PASSWORD: grades_pass
+    ports:
+      - "5440:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grades_user -d grades_app"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - grades_network
+
+  web:
+    build: .
+    container_name: grades_app_web
+    command: /bin/bash entrypoint.sh
+    volumes:
+      - .:/app
+    ports:
+      - "8888:8000"
+    environment:
+      DJANGO_DB_ENGINE: django.db.backends.postgresql
+      DJANGO_DB_NAME: grades_app
+      DJANGO_DB_USER: grades_user
+      DJANGO_DB_PASSWORD: grades_pass
+      DJANGO_DB_HOST: db
+      DJANGO_DB_PORT: "5432"
+      DJANGO_DEBUG: "1"
+      DJANGO_SECRET_KEY: "django-insecure-dev-key-change-in-production"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,web"
+    depends_on:
+      db:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+    networks:
+      - grades_network
+
+volumes:
+  postgres_data:
+
+networks:
+  grades_network:
+    driver: bridge
